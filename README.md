@@ -102,6 +102,8 @@ uv run pytest tests/test_integration.py -v
 
 Tests use testcontainers to automatically spin up Postgres, Redis, NATS, and LocalStack containers.
 
+**Tip:** To see Testcontainers orchestrating containers in real-time, run `watch docker ps` in one terminal while running `uv run pytest` in another. You'll see containers start, run, and get cleaned up automatically.
+
 ### Local Development with Docker Compose
 
 ```bash
