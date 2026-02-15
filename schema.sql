@@ -1,0 +1,8 @@
+CREATE TABLE jobs (
+    id VARCHAR(36) PRIMARY KEY,
+    n INTEGER NOT NULL,
+    result NUMERIC NOT NULL,
+    s3_uri VARCHAR(255) NOT NULL,
+    completed_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
