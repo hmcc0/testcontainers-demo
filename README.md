@@ -1,5 +1,185 @@
 # Testcontainers Demo
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [Data Flow](#data-flow)
+  - [Message Formats](#message-formats)
+- [Usage](#usage)
+  - [Prerequisites](#prerequisites)
+  - [Setup](#setup)
+  - [Running Tests](#running-tests)
+  - [Local Development with Docker Compose](#local-development-with-docker-compose)
+  - [Manual Testing](#manual-testing)
+  - [Verifying Results](#verifying-results)
+- [Testcontainers](#testcontainers)
+  - [Key Benefits](#key-benefits)
+  - [Architecture](#architecture)
+  - [Installation](#installation)
+  - [Popular Python Modules](#popular-python-modules)
+  - [Examples](#examples)
+  - [Advanced Configuration](#advanced-configuration)
+  - [Resources](#resources)
+
+## Overview
+
+A queue worker that computes Fibonacci numbers, demonstrating testcontainers with Python. The worker subscribes to a NATS queue, computes Fibonacci numbers using Redis for memoization, stores results in S3, and persists job metadata to Postgres.
+
+### Data Flow
+
+```mermaid
+flowchart LR
+    subgraph Input
+        NATS[NATS Queue<br/>jobs.fibonacci]
+    end
+
+    subgraph Worker
+        W[Worker Process]
+    end
+
+    subgraph Cache
+        Redis[(Redis<br/>Memoization)]
+    end
+
+    subgraph Storage
+        S3[(S3/LocalStack<br/>JSON Results)]
+        PG[(Postgres<br/>Job Records)]
+    end
+
+    subgraph Notifications
+        NOTIFY[NATS<br/>notifications.fibonacci]
+    end
+
+    NATS -->|1. Job Request<br/>job_id, n| W
+    W <-->|2. Cache Lookup/Store| Redis
+    W -->|3. Save Result JSON| S3
+    W -->|4. Save Job Record| PG
+    W -->|5. Publish Status| NOTIFY
+```
+
+### Message Formats
+
+**Job Input** (`jobs.fibonacci`):
+```json
+{"job_id": "uuid", "n": 50}
+```
+
+**Notifications** (`notifications.fibonacci`):
+```json
+{"job_id": "uuid", "status": "started|progress|completed", "timestamp": "..."}
+```
+
+## Usage
+
+### Prerequisites
+
+- Python 3.11+
+- Docker (for testcontainers and local development)
+- [uv](https://docs.astral.sh/uv/) package manager (recommended)
+
+### Setup
+
+```bash
+# Install dependencies
+uv sync --all-extras
+
+# Or with pip
+pip install -e ".[dev]"
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest tests/ -v
+
+# Run unit tests only
+uv run pytest tests/test_unit.py -v
+
+# Run integration tests only
+uv run pytest tests/test_integration.py -v
+```
+
+Tests use testcontainers to automatically spin up Postgres, Redis, NATS, and LocalStack containers.
+
+### Local Development with Docker Compose
+
+```bash
+# Start all services
+docker compose up -d
+
+# View logs
+docker compose logs -f worker
+
+# Stop services
+docker compose down
+```
+
+### Manual Testing
+
+With docker compose running, you can manually submit jobs and observe the worker:
+
+```bash
+# Install NATS CLI (if not already installed)
+# macOS: brew install nats-io/nats-tools/nats
+# Linux: go install github.com/nats-io/natscli/nats@latest
+
+# Subscribe to notifications (in one terminal)
+nats sub "notifications.fibonacci"
+
+# Submit a job (in another terminal)
+nats pub jobs.fibonacci '{"job_id": "test-001", "n": 20}'
+
+# Submit a larger job with progress updates
+nats pub jobs.fibonacci '{"job_id": "test-002", "n": 150}'
+```
+
+Alternatively, use Python to submit jobs:
+
+```python
+import asyncio
+import json
+import uuid
+import nats
+
+async def submit_job(n: int):
+    nc = await nats.connect("nats://localhost:4222")
+
+    # Subscribe to notifications
+    async def handler(msg):
+        print(f"Notification: {msg.data.decode()}")
+
+    await nc.subscribe("notifications.fibonacci", cb=handler)
+
+    # Submit job
+    job = {"job_id": str(uuid.uuid4()), "n": n}
+    await nc.publish("jobs.fibonacci", json.dumps(job).encode())
+    print(f"Submitted: {job}")
+
+    await asyncio.sleep(2)  # Wait for notifications
+    await nc.close()
+
+asyncio.run(submit_job(30))
+```
+
+### Verifying Results
+
+Check the database for completed jobs:
+
+```bash
+docker compose exec postgres psql -U postgres -c "SELECT * FROM jobs;"
+```
+
+Check S3 for result files:
+
+```bash
+# List objects in the bucket
+aws --endpoint-url=http://localhost:4566 s3 ls s3://fibonacci-results/results/
+
+# View a result file
+aws --endpoint-url=http://localhost:4566 s3 cp s3://fibonacci-results/results/<job-id>.json -
+```
+
 ## Testcontainers
 
 Testcontainers is an open-source library that provides lightweight, throwaway Docker containers for integration testing. Instead of mocks or in-memory substitutes, you test against real services—databases, message brokers, browsers—with automatic lifecycle management. Rated **Adopt** on the [Thoughtworks Technology Radar](https://www.thoughtworks.com/radar/languages-and-frameworks/testcontainers), it's recognized as an industry best practice for reliable test environments.
