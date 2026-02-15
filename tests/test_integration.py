@@ -15,7 +15,7 @@ import uuid
 
 import pytest
 
-from worker import (
+from src.worker import (
     process_job,
     compute_fibonacci,
     get_job_from_db,

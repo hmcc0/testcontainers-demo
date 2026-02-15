@@ -7,6 +7,6 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir .
 
 # Copy application
-COPY worker.py .
+COPY src/worker.py .
 
 CMD ["python", "worker.py"]

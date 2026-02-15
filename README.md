@@ -23,7 +23,7 @@
 
 ## Overview
 
-A queue worker that computes Fibonacci numbers, demonstrating testcontainers with Python. The worker subscribes to a NATS queue, computes Fibonacci numbers using Redis for memoization, stores results in S3, and persists job metadata to Postgres.
+A queue worker (`src/worker.py`) that computes Fibonacci numbers, demonstrating testcontainers with Python. The worker subscribes to a NATS queue, computes Fibonacci numbers using Redis for memoization, stores results in S3, and persists job metadata to Postgres.
 
 ### Data Flow
 

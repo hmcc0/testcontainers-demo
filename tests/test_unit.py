@@ -10,7 +10,7 @@ Tests individual components with real containers:
 
 import json
 
-from worker import (
+from src.worker import (
     compute_fibonacci,
     save_result_to_s3,
     save_job_to_db,
