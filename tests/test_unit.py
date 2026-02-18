@@ -197,3 +197,44 @@ class TestCacheIsolation:
     def test_cache_isolation_third(self, redis_client):
         """Third test: verify second test's value is also cleared."""
         assert redis_client.get("isolation-test") is None
+
+
+class TestGenericContainer:
+    """
+    Demonstrate the GenericContainer (DockerContainer) API.
+
+    Compares starting Redis manually via DockerContainer vs the zero-config
+    RedisContainer module — shows what the module does for you behind the scenes.
+    """
+
+    def test_redis_via_generic_container(self):
+        """Start Redis with DockerContainer — manual port mapping and wait strategy."""
+        from testcontainers.core.container import DockerContainer
+        from testcontainers.core.wait_strategies import LogMessageWaitStrategy
+        import redis as redis_lib
+
+        container = DockerContainer("redis:7-alpine").with_exposed_ports(6379)
+        container.waiting_for(LogMessageWaitStrategy("Ready to accept connections"))
+
+        with container:
+            host = container.get_container_host_ip()
+            port = container.get_exposed_port(6379)
+
+            client = redis_lib.from_url(f"redis://{host}:{port}", decode_responses=True)
+            client.set("generic-test", "it works")
+            assert client.get("generic-test") == "it works"
+            client.close()
+
+    def test_redis_via_module(self):
+        """Start Redis with RedisContainer — zero-config, built-in wait strategy."""
+        from testcontainers.redis import RedisContainer
+        import redis as redis_lib
+
+        with RedisContainer("redis:7-alpine") as redis_cont:
+            host = redis_cont.get_container_host_ip()
+            port = redis_cont.get_exposed_port(6379)
+
+            client = redis_lib.from_url(f"redis://{host}:{port}", decode_responses=True)
+            client.set("module-test", "it works")
+            assert client.get("module-test") == "it works"
+            client.close()
